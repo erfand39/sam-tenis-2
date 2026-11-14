@@ -5,6 +5,7 @@ import { roles } from '@/lib/roles';
 import { resourcePath } from '@/lib/resource-fields';
 import { currentUser } from '@/lib/session';
 import { Brand, Logout } from '../../ui';
+import { ClubPageMotion } from '../../motion-ui';
 import { ClubNav } from './nav';
 import { ClubSearch } from './search';
 
@@ -36,6 +37,6 @@ export default async function ClubLayout({ children, params }: { children: React
       ]} />
       <div className="local-account"><strong>{name || 'حساب باشگاه'}</strong><small>{roles[club.role]}</small><Logout /></div>
     </aside>
-    <main className="local-content">{children}</main>
+    <main className="local-content"><ClubPageMotion>{children}</ClubPageMotion></main>
   </div>;
 }
