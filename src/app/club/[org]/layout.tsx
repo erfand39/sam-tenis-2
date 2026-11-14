@@ -6,6 +6,7 @@ import { resourcePath } from '@/lib/resource-fields';
 import { currentUser } from '@/lib/session';
 import { Brand, Logout } from '../../ui';
 import { ClubNav } from './nav';
+import { ClubSearch } from './search';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ export default async function ClubLayout({ children, params }: { children: React
   return <div className="local-shell">
     <aside className="local-sidebar">
       <Brand href={`/club/${org}`} />
+      <ClubSearch org={org} />
       <ClubNav links={[
         { href: `/club/${org}`, label: 'نمای کلی' },
         { href: `/club/${org}/calendar`, label: 'تقویم سانس‌ها' },
