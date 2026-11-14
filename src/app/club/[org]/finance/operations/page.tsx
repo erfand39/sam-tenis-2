@@ -2,10 +2,9 @@ import Link from 'next/link';
 import { notFound,redirect } from 'next/navigation';
 import { branchDateTime,numberFa,periodDates,validCalendarDate } from '@/lib/calendar-dates';
 import { classesPath } from '@/lib/class-fields';
-import { branches,uuid,type Branch } from '@/lib/club';
+import { branches,clubCurrency,uuid,type Branch } from '@/lib/club';
 import { coachFinance,financeExpenses,financeRates,trainingFinance } from '@/lib/club-finance';
 import { coachBases,expenseCategories,operationsPath,operationsTabs,payableStates,type OperationsTab } from '@/lib/club-finance-fields';
-import { asUser } from '@/lib/db';
 import { financePath,paymentMethods } from '@/lib/finance-fields';
 import { errorMessage } from '@/lib/messages';
 import { formatMinor } from '@/lib/money';
@@ -219,9 +218,9 @@ export default async function FinanceOperations({params,searchParams}:{params:Pr
   const from=typeof filters.from==='string' && validCalendarDate(filters.from) ? filters.from : periodDates(today,'month').start;
   const to=typeof filters.to==='string' && validCalendarDate(filters.to) ? filters.to : today;
   const page=typeof filters.page==='string' && /^\d{1,5}$/.test(filters.page) ? Math.max(1,Number(filters.page)) : 1;
-  const {rows:[club]}=await asUser(user.id,db=>db.query<{currency:string}>('select currency from public.organizations where id=$1',[org]));
-  if (!club) notFound();
-  const scope={org,branch,currency:club.currency,today};
+  const currency=await clubCurrency(user.id,org);
+  if (!currency) notFound();
+  const scope={org,branch,currency,today};
   let content;
   let hasNext=false;
   if (tab==='packages') {

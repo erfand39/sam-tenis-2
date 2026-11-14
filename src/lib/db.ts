@@ -1,6 +1,8 @@
 import 'server-only';
 import pg, { type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
-import { databaseUrl, isDatabaseConfigured } from './config';
+import { databaseUrl, isDatabaseConfigured, isDemoMode } from './config';
+
+const DEMO_OWNER_ID = '10000000-0000-4000-8000-000000000099';
 
 let pool: pg.Pool | undefined;
 let warnedMock = false;
@@ -19,7 +21,7 @@ function createMockClient(): PoolClient {
 function createMockPool(): pg.Pool {
   if (!warnedMock) {
     warnedMock = true;
-    console.warn('[AI Studio] Database not connected — mock active');
+    console.warn('[AI Studio] Database not connected — demo store active');
   }
   const mockPool = {
     query: async <R extends QueryResultRow = QueryResultRow>() => mockResult<R>([]),
@@ -71,7 +73,7 @@ export function asUser<T>(userId: string, work: (client: PoolClient) => Promise<
 }
 
 export async function isConfigured(): Promise<boolean> {
-  if (!isDatabaseConfigured()) return false;
+  if (isDemoMode()) return true;
   try {
     const { rows } = await database().query<{ configured: boolean }>('select tennis_runtime.is_configured() as configured');
     return Boolean(rows[0]?.configured);
@@ -82,7 +84,7 @@ export async function isConfigured(): Promise<boolean> {
 }
 
 export async function hasManagerAccess(userId: string): Promise<boolean> {
-  if (!isDatabaseConfigured()) return false;
+  if (isDemoMode()) return userId === DEMO_OWNER_ID;
   try {
     return await asUser(userId, async client => {
       const { rows } = await client.query<{ allowed: boolean }>(`

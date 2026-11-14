@@ -382,8 +382,8 @@
   .class-attendance-field { grid-template-columns: minmax(0,1fr) minmax(110px,1fr); }
 }
 
-.finance-totals { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,155px),1fr)); gap: 8px; margin-bottom: 12px; }
-.finance-totals .stat-value,.finance-detail-totals .stat-value { font-size: clamp(16px,2vw,23px); overflow-wrap: anywhere; }
+.finance-totals { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,195px),1fr)); gap: 10px; margin-bottom: 12px; }
+.finance-totals .stat-value,.finance-detail-totals .stat-value { font-size: clamp(15px,1.55vw,20px); overflow-wrap: normal; word-break: keep-all; white-space: nowrap; }
 .finance-filters { grid-template-columns: minmax(115px,1.15fr) repeat(4,minmax(120px,1fr)) auto; }
 .finance-movement { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding-block: 9px; font-size: 13px; }
 .finance-movement small { display: block; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }

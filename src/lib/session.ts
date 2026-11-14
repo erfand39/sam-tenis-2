@@ -5,10 +5,12 @@ import { cookies } from 'next/headers';
 import type { NextResponse } from 'next/server';
 import { cache } from 'react';
 import { makeAuthClient } from '../../local/auth-client.mjs';
-import { appOrigin, authSecret, authUrl, isAuthConfigured, isDatabaseConfigured, sessionKey } from './config';
+import { appOrigin, authSecret, authUrl, isAuthConfigured, isDatabaseConfigured, isDemoMode, sessionKey } from './config';
 import { database, hasManagerAccess, transaction } from './db';
 
 export const cookieName = 'sam_session';
+export const demoLogoutCookie = 'sam_demo_out';
+const DEMO_OWNER_ID = '10000000-0000-4000-8000-000000000099';
 const lifetimeSeconds = 12 * 60 * 60;
 type Credentials = { access: string; refresh: string };
 export type WebUser = { id: string; email: string };
@@ -98,7 +100,10 @@ async function refresh(hash: string): Promise<StoredSession | null> {
   });
 }
 
-export async function identify(value: string | undefined): Promise<WebUser | null> {
+export async function identify(value: string | undefined, demoLoggedOut = false): Promise<WebUser | null> {
+  if (isDemoMode()) {
+    return demoLoggedOut ? null : { id: DEMO_OWNER_ID, email: 'owner@samtennis.ir' };
+  }
   if (!validToken(value) || !isDatabaseConfigured() || !isAuthConfigured()) return null;
   const hash = digest(value);
   const { rows } = await database().query<StoredSession>(sessionSql, [hash]);
@@ -114,7 +119,10 @@ export async function identify(value: string | undefined): Promise<WebUser | nul
   return { id: row.user_id, email: data.user.email ?? row.email };
 }
 
-export const currentUser = cache(async () => identify((await cookies()).get(cookieName)?.value));
+export const currentUser = cache(async () => {
+  const store = await cookies();
+  return identify(store.get(cookieName)?.value, store.get(demoLogoutCookie)?.value === '1');
+});
 
 export async function removeSession(value: string | undefined, device?:string): Promise<void> {
   if (!validToken(value)) return;

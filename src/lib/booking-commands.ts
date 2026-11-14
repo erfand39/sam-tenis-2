@@ -1,7 +1,9 @@
 import 'server-only';
 import { type PoolClient } from 'pg';
 import { uuid } from './club';
+import { isDemoMode } from './config';
 import { asUser } from './db';
+import { demoRunBookingAction } from './demo-store';
 import { InputError } from './input';
 import { asciiDigits, bookingKinds } from './resource-fields';
 import { calendarDateTime, calendarPath } from './calendar-dates';
@@ -93,6 +95,7 @@ export function bookingError(failure: { code?: string; message?: string; constra
 
 export async function runBookingAction(action: BookingAction, form: URLSearchParams, user: string, org: string) {
   const branch = identifier(form,'branch')!;
+  if (isDemoMode()) return demoRunBookingAction(action, form, org);
   try {
     return await asUser(user, async db => {
       if (action==='booking-move' || action==='booking-cancel') {

@@ -1,6 +1,7 @@
 import { randomUUID,timingSafeEqual } from 'node:crypto';
 import { type NextRequest, NextResponse } from 'next/server';
-import { appOrigin, authUrl, isAuthConfigured, isDatabaseConfigured, setupCode } from '@/lib/config';
+import { appOrigin, authUrl, isAuthConfigured, isDatabaseConfigured, isDemoMode, setupCode } from '@/lib/config';
+import { DEMO_ORG_ID, demoGenerateInvite, demoGenerateRecovery, demoSetMember, demoUpdateProfile } from '@/lib/demo-store';
 import { asUser, database, hasManagerAccess, isConfigured } from '@/lib/db';
 import { clubFor, members, uuid } from '@/lib/club';
 import { type ClubRole, roles } from '@/lib/roles';
@@ -16,7 +17,7 @@ import { isResourceCommand, runResourceCommand } from '@/lib/resource-commands';
 import { isResourceKind, resourcePath } from '@/lib/resource-fields';
 import { searchResources } from '@/lib/resources';
 import {
-  adminAuth, clearSessionCookie, cookieName, createWebSession, identify, publicAuth, removeSession, setSessionCookie,
+  adminAuth, clearSessionCookie, cookieName, createWebSession, demoLogoutCookie, identify, publicAuth, removeSession, setSessionCookie,
 } from '@/lib/session';
 
 export const runtime = 'nodejs';
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ act
     }
   }
   if (action === 'resource-search') {
-    const user = await identify(request.cookies.get(cookieName)?.value);
+    const user = await identify(request.cookies.get(cookieName)?.value, request.cookies.get(demoLogoutCookie)?.value === '1');
     if (!user) return NextResponse.json({ error: 'session' }, { status: 401 });
     const org = request.nextUrl.searchParams.get('org') ?? '';
     if (!uuid(org) || !(await clubFor(user.id, org))) return NextResponse.json({ error: 'denied' }, { status: 403 });
@@ -170,6 +171,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
   try {
     const fields = await form(request);
     if (action === 'logout') {
+      if (isDemoMode()) {
+        const response = go('/', undefined, request);
+        response.cookies.set(demoLogoutCookie, '1', { httpOnly: true, sameSite: 'lax', secure: appOrigin().startsWith('https:'), path: '/', maxAge: 7 * 86400 });
+        return response;
+      }
       const device=request.cookies.get(pushCookie)?.value;
       await removeSession(currentToken,device&&uuid(device)?device:undefined);
       const response = go('/', undefined, request);
@@ -178,6 +184,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
       return response;
     }
     if (action === 'login') {
+      if (isDemoMode()) {
+        emailOf(fields);
+        passwordOf(fields, false);
+        const response = go(`/club/${DEMO_ORG_ID}`, undefined, request);
+        response.cookies.set(demoLogoutCookie, '', { httpOnly: true, sameSite: 'lax', secure: appOrigin().startsWith('https:'), path: '/', maxAge: 0 });
+        return response;
+      }
       const session = await signIn(emailOf(fields), passwordOf(fields, false));
       if (!(await hasManagerAccess(session.user.id))) throw new InputError('manager-only', 403);
       const response = go('/club', undefined, request);
@@ -225,7 +238,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
       return response;
     }
 
-    const user = await identify(currentToken);
+    const user = await identify(currentToken, request.cookies.get(demoLogoutCookie)?.value === '1');
     if (!user) throw new InputError('session', 401);
     const org = idOf(fields, 'org');
     const club = await clubFor(user.id, org);
@@ -239,6 +252,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
       return wantsJson?NextResponse.json({ok:true}):go(errorPath, undefined, request);
     }
     if (action==='notice-push' || action==='notice-disable') {
+      if (isDemoMode()) return NextResponse.json({ ok: true });
       const previous=request.cookies.get(pushCookie)?.value;
       const response=NextResponse.json({ok:true});
       if (action==='notice-push') {
@@ -251,11 +265,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
     }
     if (action === 'profile') {
       errorPath = `/club/${org}/profile`;
-      await asUser(user.id, db => db.query('select public.update_my_profile($1)', [nameOf(fields)]));
+      const name = nameOf(fields);
+      if (isDemoMode()) {
+        demoUpdateProfile(user.id, name);
+        return go(`${errorPath}?saved=1`, undefined, request);
+      }
+      await asUser(user.id, db => db.query('select public.update_my_profile($1)', [name]));
       return go(`${errorPath}?saved=1`, undefined, request);
     }
     if (action === 'leave') {
       errorPath = `/club/${org}/profile`;
+      if (isDemoMode()) return go(errorPath, 'denied', request);
       await asUser(user.id, db => db.query('select public.leave_club($1)', [org]));
       return go('/club', undefined, request);
     }
@@ -293,6 +313,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
     if (action === 'member') {
       const target = idOf(fields, 'user');
       const access = accessOf(fields);
+      if (isDemoMode()) {
+        demoSetMember(target, access.role, access.active, access.locations);
+        return go(`${errorPath}?saved=1`, undefined, request);
+      }
       await asUser(user.id, db => db.query('select public.set_club_member($1,$2,$3,$4,$5)',
         [org, target, access.role, access.active, access.locations]));
       return go(`${errorPath}?saved=1`, undefined, request);
@@ -301,6 +325,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
       fields.set('active', 'yes');
       const email = emailOf(fields);
       const access = accessOf(fields);
+      if (isDemoMode()) {
+        return NextResponse.json({ link: demoGenerateInvite(email, access.role, access.locations, requestOrigin(request)) });
+      }
       const result = await adminAuth().admin.generateLink({ type: 'invite', email });
       if (result.error || !result.data.properties?.hashed_token || !result.data.user?.id) throw new InputError('invite');
       await asUser(user.id, db => db.query('select public.set_club_member($1,$2,$3,$4,$5)',
@@ -309,6 +336,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
     }
     if (action === 'recovery') {
       const target = idOf(fields, 'user');
+      if (isDemoMode()) {
+        return NextResponse.json({ link: demoGenerateRecovery(target, requestOrigin(request)) });
+      }
       const member = (await members(user.id, org)).find(row => row.user_id === target && row.active);
       if (!member?.email) throw new InputError('denied', 403);
       const { data, error } = await adminAuth().admin.generateLink({ type: 'recovery', email: member.email });

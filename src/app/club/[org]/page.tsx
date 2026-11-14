@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { branches, clubFor } from '@/lib/club';
-import { asUser } from '@/lib/db';
+import { branches, clubFor, clubOverviewCounts } from '@/lib/club';
 import { currentUser } from '@/lib/session';
 import { roles } from '@/lib/roles';
 
@@ -14,13 +13,7 @@ export default async function Dashboard({ params }: { params: Promise<{ org: str
 
   const [scope, counts] = await Promise.all([
     branches(user.id, org),
-    asUser(user.id, async db => (await db.query<{
-      courts: number; bookings: number; coaches: number; students: number;
-    }>(`select
-      (select count(*)::int from public.courts where organization_id=$1 and status='active') as courts,
-      (select count(*)::int from public.bookings where organization_id=$1 and status='confirmed' and starts_at>=now()) as bookings,
-      (select count(*)::int from public.coach_profiles where organization_id=$1 and status='active') as coaches,
-      (select count(*)::int from public.student_profiles where organization_id=$1 and status='active') as students`, [org])).rows[0]),
+    clubOverviewCounts(user.id, org),
   ]);
   const number = new Intl.NumberFormat('fa-IR');
   return <>

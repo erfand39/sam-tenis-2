@@ -1,6 +1,8 @@
 import 'server-only';
 import { type Branch } from './club';
+import { isDemoMode } from './config';
 import { asUser } from './db';
+import { demoFinanceInvoice, demoFinanceOverview } from './demo-store';
 import { type InvoiceState,paymentMethods } from './finance-fields';
 import { type bookingKinds } from './resource-fields';
 
@@ -18,6 +20,7 @@ const amounts=`i.total_amount_minor::text as total,i.discount_minor::text as dis
   b.received_minor::text as received,b.due_minor::text as due,b.status`;
 
 export function financeOverview(user:string,org:string,branch:Branch,from:string,to:string,status:InvoiceState|null,page:number,invoiceNumber:string|null) {
+  if (isDemoMode()) return Promise.resolve(demoFinanceOverview(org, branch, from, to, status, page, invoiceNumber));
   const size=24;
   return asUser(user,async db=>{
     const params=[org,branch.id,branch.timezone,from,to];
@@ -105,6 +108,7 @@ export function financeOverview(user:string,org:string,branch:Branch,from:string
 }
 
 export function financeInvoice(user:string,org:string,invoice:string) {
+  if (isDemoMode()) return Promise.resolve(demoFinanceInvoice(invoice));
   return asUser(user,async db=>{
     const detail=(await db.query<InvoiceDetail>(`
       select i.id,i.location_id,i.invoice_number,i.issued_at,i.currency,${amounts},i.discount_reason,i.voided_at,i.void_reason

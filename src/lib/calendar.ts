@@ -1,6 +1,10 @@
 import 'server-only';
 import { type Branch } from './club';
+import { isDemoMode } from './config';
 import { asUser } from './db';
+import {
+  demoCalendarBooking, demoCalendarBookingOptions, demoCalendarCourts, demoCalendarPeriod, demoCourtFreeWindows,
+} from './demo-store';
 import { type bookingKinds } from './resource-fields';
 
 export type BookingKind = keyof typeof bookingKinds;
@@ -26,6 +30,7 @@ const bookingTables = `
 `;
 
 export function calendarCourts(user: string, org: string, branch: string) {
+  if (isDemoMode()) return Promise.resolve(demoCalendarCourts(branch));
   return asUser(user, async db => (await db.query<CalendarCourt>(`
     select id,name,surface,status from public.courts where organization_id=$1 and location_id=$2
     order by status='active' desc,name,id
@@ -33,6 +38,7 @@ export function calendarCourts(user: string, org: string, branch: string) {
 }
 
 export function calendarPeriod(user: string, org: string, branch: Branch, court: string | undefined, start: string, end: string, requestedPage: number) {
+  if (isDemoMode()) return Promise.resolve(demoCalendarPeriod(branch, court, start, end, requestedPage));
   return asUser(user, async db => {
     const parameters = [org,branch.id,branch.timezone,start,end,court ?? null];
     const filter = `b.organization_id=$1 and b.location_id=$2
@@ -60,6 +66,7 @@ export function calendarPeriod(user: string, org: string, branch: Branch, court:
 
 export function courtFreeWindows(user: string, org: string, branch: Branch, day: string, court?: string) {
   if (!branch.active) return Promise.resolve([]);
+  if (isDemoMode()) return Promise.resolve(demoCourtFreeWindows(branch, day, court));
   return asUser(user, async db => (await db.query<FreeWindow>(`
     with bounds as (
       select tstzrange($4::date::timestamp at time zone $3,($4::date+1)::timestamp at time zone $3,'[)') as span
@@ -94,6 +101,7 @@ export function courtFreeWindows(user: string, org: string, branch: Branch, day:
 }
 
 export function calendarBookingOptions(user: string, org: string, branch: string) {
+  if (isDemoMode()) return Promise.resolve(demoCalendarBookingOptions(branch));
   return asUser(user, async db => {
     const coaches = (await db.query<Person>(`
       select p.id,p.name as name from public.coach_profiles p join public.coach_locations l
@@ -114,6 +122,7 @@ type BookingDetail = Booking & {
 };
 type History = { action: string; created_at: Date; old_start: Date|null; new_start: Date|null };
 export function calendarBooking(user: string, org: string, branches: Branch[], id: string) {
+  if (isDemoMode()) return Promise.resolve(demoCalendarBooking(branches, id));
   return asUser(user, async db => {
     const location = (await db.query<{ location_id: string }>(
       'select location_id from public.bookings where organization_id=$1 and id=$2',[org,id])).rows[0]?.location_id;
