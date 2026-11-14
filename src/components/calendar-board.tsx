@@ -159,6 +159,17 @@ export function CalendarBoard({
     setItems(serverBookings);
   }, [serverBookings]);
 
+  useEffect(() => {
+    if (!pickModeBookingId) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPickModeBookingId(null);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [pickModeBookingId]);
+
   const timelineSlots = useMemo(() => buildTimelineSlots(DAY_START_MINUTE, DAY_END_MINUTE, SLOT_MINUTES), []);
   const activeCourts = useMemo(
     () => courts.filter(c => c.status === 'active' && (!selectedCourt || c.id === selectedCourt)),
@@ -431,14 +442,26 @@ export function CalendarBoard({
               const count = bookingsByDay.get(day.day)?.filter(b => b.status === 'confirmed').length ?? day.confirmed;
               const canDropDay = Boolean(selectedBooking && day.day >= today);
               const isHoveredDay = hoverDay === day.day;
+              const isSelectedDay = day.day === date;
+              const isTodayDay = day.day === today;
               return (
                 <Link
                   key={day.day}
                   href={day.href}
                   data-drop-day={day.day}
-                  aria-current={day.day === today ? 'date' : undefined}
-                  aria-label={`${day.longDay}، ${numberFa.format(count)} سانس`}
-                  className={`calendar-day ${canDropDay ? 'is-drop-ready' : ''} ${isHoveredDay ? 'is-drop-over' : ''}`}
+                  data-selected={isSelectedDay ? 'true' : undefined}
+                  data-today={isTodayDay ? 'true' : undefined}
+                  aria-current={isSelectedDay ? 'date' : undefined}
+                  aria-label={`${day.longDay}${isTodayDay ? ' (امروز)' : ''}، ${numberFa.format(count)} سانس`}
+                  className={[
+                    'calendar-day',
+                    isSelectedDay ? 'is-selected' : '',
+                    isTodayDay ? 'is-today' : '',
+                    canDropDay ? 'is-drop-ready' : '',
+                    isHoveredDay ? 'is-drop-over' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   onDragOver={event => {
                     if (!activeBookingId) return;
                     event.preventDefault();
@@ -466,7 +489,10 @@ export function CalendarBoard({
                   }}
                 >
                   {view === 'week' && <small>{day.shortWeekday}</small>}
-                  <strong>{day.dayNumber}</strong>
+                  <span className="calendar-day-num">
+                    <strong>{day.dayNumber}</strong>
+                    {isTodayDay && <span className="calendar-today-tag">امروز</span>}
+                  </span>
                   <span className={count ? 'calendar-count has-bookings' : 'calendar-count'}>
                     {count ? numberFa.format(count) : '–'}
                     {view === 'week' && count > 0 ? ' سانس' : ''}
@@ -661,10 +687,8 @@ export function CalendarBoard({
                         const isSaving = savingId === booking.id;
 
                         return (
-                          <motion.div
+                          <div
                             key={booking.id}
-                            layout
-                            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                             style={{ top: `${top}px`, height: `${height}px` }}
                             className={[
                               'calendar-booking-slot',
@@ -730,7 +754,7 @@ export function CalendarBoard({
                                 </bdi>
                               </div>
                             </article>
-                          </motion.div>
+                          </div>
                         );
                       })}
                     </div>
@@ -772,9 +796,9 @@ export function CalendarBoard({
                   draggable={movable && savingId !== booking.id}
                   onDragStart={event => startDrag(event, booking)}
                   onDragEnd={endDrag}
-                  className={`calendar-list-item ${movable ? 'is-movable' : ''} ${activeBookingId === booking.id ? 'is-dragging' : ''}`}
+                  className={`calendar-list-item ${movable ? 'is-movable' : ''} ${activeBookingId === booking.id ? 'is-dragging' : ''} ${isPicked ? 'is-picked' : ''}`}
                 >
-                  <div className="calendar-row-wrap">
+                  <div className={`calendar-row-wrap ${isPicked ? 'is-picked' : ''}`}>
                     {movable && (
                       <button
                         type="button"

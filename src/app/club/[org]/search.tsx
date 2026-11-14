@@ -38,7 +38,11 @@ export function ClubSearch({ org }: { org: string }) {
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
       event.preventDefault();
-      inputRef.current?.focus();
+      if (window.innerWidth <= 840) {
+        window.dispatchEvent(new CustomEvent('sam:open-club-search'));
+      } else {
+        inputRef.current?.focus();
+      }
     };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onShortcut);
@@ -94,6 +98,7 @@ export function ClubSearch({ org }: { org: string }) {
   function selectItem(item: ResourceSearchItem) {
     setOpen(false);
     setActiveIndex(-1);
+    window.dispatchEvent(new CustomEvent('sam:close-club-drawer'));
     router.push(resourcePath(org, item.kind, item.id));
   }
 
@@ -179,6 +184,7 @@ export function ClubSearch({ org }: { org: string }) {
           onClick={() => {
             setOpen(false);
             setActiveIndex(-1);
+            window.dispatchEvent(new CustomEvent('sam:close-club-drawer'));
           }}
         >
           <span className="club-search-option-head">

@@ -79,13 +79,11 @@
   box-shadow: var(--glass-shadow), 0 0 0 1px var(--glass-line);
   padding: .92rem 1rem;
   min-width: 0;
-  transform: translate3d(0, 0, 0);
-  transition: transform 280ms var(--ease-smooth), box-shadow 280ms var(--ease-smooth), background var(--motion);
-  animation: glass-rise-in 360ms var(--ease-smooth) both;
+  transition: box-shadow var(--motion), border-color var(--motion), background var(--motion);
 }
 .report-metric:hover {
-  transform: translate3d(0, -3px, 0);
   background: var(--glass-bg-elevated);
+  border-color: var(--glass-line-hover);
   box-shadow: var(--glass-shadow-hover), 0 0 0 1px var(--glass-line-hover);
 }
 .report-metric-label { color: var(--muted); font-size: .84rem; font-weight: 720; }

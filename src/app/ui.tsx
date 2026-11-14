@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { errorMessage } from '@/lib/messages';
-import { AccessScene } from './access-scene';
+import { AccessSceneSlot } from './access-scene-slot';
 import { AccessCardMotion } from './motion-ui';
 
 export function Brand({ href = '/' }: { href?: string }) {
@@ -13,7 +13,7 @@ export function Brand({ href = '/' }: { href?: string }) {
 export function AccessShell({ children }: { children: ReactNode }) {
   return <main className="access-shell">
     <AccessCardMotion className="access-card"><Brand />{children}</AccessCardMotion>
-    <aside className="access-image"><AccessScene /></aside>
+    <aside className="access-image"><AccessSceneSlot /></aside>
   </main>;
 }
 

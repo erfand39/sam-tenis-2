@@ -1,7 +1,8 @@
 import 'server-only';
 import { isDemoMode } from './config';
 import { asUser } from './db';
-import { demoBranches, demoClubs, demoCurrency, demoDisplayName, demoMembers, demoOverviewCounts } from './demo-store';
+import { demoBranches, demoClubs, demoCurrency, demoDisplayName, demoMembers, demoOverviewCounts, demoTodaySessions } from './demo-store';
+import type { bookingKinds } from './resource-fields';
 import type { ClubRole } from './roles';
 
 export type Club = { id: string; name: string; role: ClubRole };
@@ -9,6 +10,21 @@ export type Branch = { id: string; name: string; timezone: string; active: boole
 export type Member = {
   user_id: string; email: string | null; display_name: string | null; role: ClubRole;
   active: boolean; location_ids: string[];
+};
+export type TodaySessionItem = {
+  id: string;
+  location_id: string;
+  branch_name: string;
+  court_name: string;
+  starts_at: Date;
+  ends_at: Date;
+  timezone: string;
+  kind: keyof typeof bookingKinds;
+  status: 'confirmed' | 'cancelled';
+  booker_name: string | null;
+  coach_name: string | null;
+  session_id: string | null;
+  session_status: 'scheduled' | 'completed' | 'cancelled' | null;
 };
 export const uuid = (id: string) => /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(id);
 
@@ -57,4 +73,25 @@ export async function clubOverviewCounts(userId: string, org: string) {
     (select count(*)::int from public.bookings where organization_id=$1 and status='confirmed' and starts_at>=now()) as bookings,
     (select count(*)::int from public.coach_profiles where organization_id=$1 and status='active') as coaches,
     (select count(*)::int from public.student_profiles where organization_id=$1 and status='active') as students`, [org])).rows[0]);
+}
+
+export async function clubTodaySessions(userId: string, org: string, scope: Branch[]): Promise<TodaySessionItem[]> {
+  if (!scope.length) return [];
+  if (isDemoMode()) return demoTodaySessions(org, scope);
+  const branchIds = scope.map(branch => branch.id);
+  return asUser(userId, async db => (await db.query<TodaySessionItem>(`
+    select b.id, b.location_id, l.name as branch_name, c.name as court_name,
+      b.starts_at, b.ends_at, b.timezone, b.kind, b.status, b.booker_name,
+      cp.name as coach_name, s.id as session_id, s.status as session_status
+    from public.bookings b
+    join public.locations l on (l.organization_id, l.id) = (b.organization_id, b.location_id)
+    join public.courts c on (c.organization_id, c.location_id, c.id) = (b.organization_id, b.location_id, b.court_id)
+    left join public.sessions s on (s.organization_id, s.location_id, s.booking_id) = (b.organization_id, b.location_id, b.id)
+    left join public.coach_profiles cp on (cp.organization_id, cp.id) = (s.organization_id, s.coach_id)
+    where b.organization_id = $1
+      and b.location_id = any($2::uuid[])
+      and timezone(l.timezone, b.starts_at)::date = timezone(l.timezone, now())::date
+    order by b.starts_at asc, b.id asc
+    limit 12
+  `, [org, branchIds])).rows);
 }

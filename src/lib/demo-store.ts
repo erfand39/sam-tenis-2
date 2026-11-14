@@ -2958,3 +2958,40 @@ export function demoMarkNotices(branch: string | null, event: string | null) {
     if (!branch || n.location_id === branch) store.readNoticeIds.add(n.id);
   }
 }
+
+export function demoTodaySessions(org: string, scope: Branch[]) {
+  const store = getDemoStore();
+  if (org !== store.org.id || !scope.length) return [];
+  const branchMap = new Map(scope.map(b => [b.id, b]));
+  const todayByBranch = new Map(scope.map(b => [b.id, branchDateTime(b.timezone).date]));
+  return store.bookings
+    .filter(b => {
+      const branch = branchMap.get(b.location_id);
+      if (!branch) return false;
+      const today = todayByBranch.get(b.location_id);
+      return localDayOf(b.starts_at, branch.timezone) === today;
+    })
+    .sort((a, b) => a.starts_at.getTime() - b.starts_at.getTime())
+    .slice(0, 12)
+    .map(b => {
+      const branch = branchMap.get(b.location_id)!;
+      const court = store.courts.find(c => c.id === b.court_id);
+      const session = store.sessions.find(s => s.booking_id === b.id);
+      const coach = session?.coach_id ? store.coaches.find(c => c.id === session.coach_id) : null;
+      return {
+        id: b.id,
+        location_id: b.location_id,
+        branch_name: branch.name,
+        court_name: court?.name ?? 'زمین',
+        starts_at: b.starts_at,
+        ends_at: b.ends_at,
+        timezone: b.timezone,
+        kind: b.kind,
+        status: b.status,
+        booker_name: b.booker_name,
+        coach_name: coach?.name ?? null,
+        session_id: session?.id ?? null,
+        session_status: session?.status ?? null,
+      };
+    });
+}
