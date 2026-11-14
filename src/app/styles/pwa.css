@@ -5,25 +5,25 @@
   gap: .75rem;
   flex-wrap: wrap;
   padding: .55rem max(.75rem, env(safe-area-inset-right)) .55rem max(.75rem, env(safe-area-inset-left));
-  background: rgba(248, 239, 216, 0.85);
+  background: var(--pwa-banner-bg);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  color: #422d12;
-  border-bottom: 1px solid rgba(224, 204, 155, 0.75);
+  color: var(--pwa-banner-text);
+  border-bottom: 1px solid var(--pwa-banner-border);
   font-size: .88rem;
 }
 .pwa-status button {
   min-height: 40px;
   border: 1px solid currentColor;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--surface-muted);
   color: inherit;
   border-radius: .65rem;
   padding: .3rem .85rem;
   font-weight: 740;
   transition: background var(--motion), transform var(--motion);
 }
-.pwa-status button:hover { background: rgba(255, 255, 255, 0.9); transform: translate3d(0, -1px, 0); }
-.pwa-update { background: rgba(228, 241, 226, 0.88); color: var(--deep); border-color: rgba(188, 211, 183, 0.8); }
+.pwa-status button:hover { background: var(--hover-surface); transform: translate3d(0, -1px, 0); }
+.pwa-update { background: var(--pwa-update-bg); color: var(--deep); border-color: var(--pwa-update-border); }
 
 .pwa-install {
   display: grid;
@@ -99,18 +99,18 @@
 .notice-list li:hover {
   transform: translate3d(-2px, -1px, 0);
   background: var(--glass-bg-elevated);
-  box-shadow: 0 10px 22px -10px rgba(16, 56, 46, 0.14), inset 0 0 0 1px rgba(23, 76, 60, 0.16);
+  box-shadow: var(--glass-shadow-hover), inset 0 0 0 1px var(--glass-line-hover);
 }
 .notice-list li.notice-unread {
-  background: linear-gradient(148deg, rgba(238, 248, 234, 0.88), rgba(213, 234, 167, 0.24));
-  box-shadow: 0 6px 18px -6px rgba(23, 76, 60, 0.12), inset 0 0 0 1px rgba(50, 114, 80, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: var(--notice-unread-bg);
+  box-shadow: var(--notice-unread-shadow);
 }
 .notice-item { min-width: 0; }
 .notice-meta, .notice-badge { font-size: .75rem; color: var(--forest); }
 .notice-badge {
   display: inline-block;
-  border: 1px solid rgba(50, 114, 80, 0.25);
-  background: rgba(234, 242, 231, 0.85);
+  border: 1px solid var(--notice-border);
+  background: var(--status-active-bg);
   border-radius: 999px;
   padding: .1rem .55rem;
   font-weight: 760;
