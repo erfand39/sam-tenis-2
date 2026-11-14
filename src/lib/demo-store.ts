@@ -1754,6 +1754,7 @@ function formatBooking(store: DemoStore, b: DemoBooking) {
     session_id: sess?.id ?? null,
     session_status: sess?.status ?? null,
     capacity: sess?.capacity ?? null,
+    revision: String(b.revision),
   };
 }
 
@@ -1879,14 +1880,56 @@ export function demoRunBookingAction(action: 'booking-quote' | 'booking-create' 
     const bookingId = form.get('booking') ?? '';
     const booking = store.bookings.find(b => b.id === bookingId && b.location_id === branchId);
     if (!booking) throw new InputError('denied', 404);
+    const sess = store.sessions.find(s => s.booking_id === booking.id);
+    const revRaw = form.get('revision');
+    if (revRaw !== null && revRaw !== '' && Number(asciiDigits(revRaw)) !== booking.revision) {
+      throw new InputError('booking-stale', 409);
+    }
+    const currentMinuteMs = Math.floor(Date.now() / 60000) * 60000;
+    if (booking.status !== 'confirmed' || sess?.status === 'completed' || booking.starts_at.getTime() < currentMinuteMs) {
+      throw new InputError('booking-locked', 409);
+    }
     if (action === 'booking-move') {
       const startIso = calendarDateTime(form.get('start') ?? '');
       if (!startIso) throw new InputError('booking-time');
       const dur = booking.ends_at.getTime() - booking.starts_at.getTime();
       const oldStart = booking.starts_at;
       const newStart = toBranchDate(startIso, branch.timezone);
+      const newEnd = new Date(newStart.getTime() + dur);
+      if (newStart.getTime() < currentMinuteMs) throw new InputError('booking-time');
+      const startParts = branchDateTime(branch.timezone, newStart);
+      const endParts = branchDateTime(branch.timezone, new Date(newEnd.getTime() - 1));
+      if (startParts.date !== endParts.date) throw new InputError('booking-day');
+      const startMin = Number(startParts.hour.slice(0, 2)) * 60 + Number(startParts.hour.slice(3, 5));
+      const endMin = Number(endParts.hour.slice(0, 2)) * 60 + Number(endParts.hour.slice(3, 5)) + 1;
+      if (startMin < 8 * 60 || endMin > 22 * 60) throw new InputError('booking-court-hours');
+      const hasCourtConflict =
+        store.bookings.some(
+          other =>
+            other.id !== booking.id &&
+            other.court_id === booking.court_id &&
+            other.status === 'confirmed' &&
+            other.starts_at < newEnd &&
+            other.ends_at > newStart,
+        ) ||
+        store.blocks.some(
+          block =>
+            block.court_id === booking.court_id &&
+            !block.released_at &&
+            block.starts_at < newEnd &&
+            block.ends_at > newStart,
+        );
+      if (hasCourtConflict) throw new InputError('booking-court-conflict', 409);
+      if (sess?.coach_id) {
+        const hasCoachConflict = store.bookings.some(other => {
+          if (other.id === booking.id || other.status !== 'confirmed') return false;
+          const otherSess = store.sessions.find(s => s.booking_id === other.id);
+          return otherSess?.coach_id === sess.coach_id && other.starts_at < newEnd && other.ends_at > newStart;
+        });
+        if (hasCoachConflict) throw new InputError('booking-coach-conflict', 409);
+      }
       booking.starts_at = newStart;
-      booking.ends_at = new Date(newStart.getTime() + dur);
+      booking.ends_at = newEnd;
       booking.revision += 1;
       booking.history.push({ action: 'reschedule_booking', created_at: new Date(), old_start: oldStart, new_start: newStart });
     } else {
@@ -1897,10 +1940,15 @@ export function demoRunBookingAction(action: 'booking-quote' | 'booking-create' 
       booking.cancelled_at = new Date();
       booking.revision += 1;
       booking.history.push({ action: 'cancel_booking', created_at: new Date(), old_start: booking.starts_at, new_start: null });
-      const sess = store.sessions.find(s => s.booking_id === booking.id);
       if (sess) sess.status = 'cancelled';
     }
-    return { next: calendarPath(org, { booking: booking.id }) + '?saved=1' };
+    return {
+      ok: true,
+      next: calendarPath(org, { booking: booking.id }) + '?saved=1',
+      revision: String(booking.revision),
+      starts_at: booking.starts_at.toISOString(),
+      ends_at: booking.ends_at.toISOString(),
+    };
   }
 
   const courtId = form.get('court') ?? '';

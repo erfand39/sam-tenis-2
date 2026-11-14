@@ -106,7 +106,7 @@ export async function runBookingAction(action: BookingAction, form: URLSearchPar
         const reason = action==='booking-cancel' ? (form.get('reason') ?? '').trim() : null;
         if (reason!==null && (!reason || reason.length>250)) throw new InputError('booking-reason');
         await db.query('select public.edit_calendar_booking($1,$2,$3,$4,$5,$6,$7)',[org,branch,booking,revision,start,reason,request]);
-        return { next: calendarPath(org,{ booking }) + '?saved=1' };
+        return { ok: true, next: calendarPath(org,{ booking }) + '?saved=1' };
       }
       const draft = await readDraft(db,org,branch,form);
       if (action==='booking-quote') {
