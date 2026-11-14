@@ -305,6 +305,9 @@
 .local-panel h2 { font-size: 17px; margin-bottom: 9px; font-weight: 840; }
 .local-panel > p { margin-bottom: 10px; }
 .local-panel.narrow { max-width: 550px; }
+.table-section-head { margin-bottom: 12px; }
+.table-section-head h2 { margin-bottom: 0; }
+.csv-download-btn { min-block-size: 44px; padding-inline: 13px; }
 
 .local-branches, .member-list { display: grid; padding: 0; list-style: none; margin: 0; }
 .local-branches li { min-height: 50px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }

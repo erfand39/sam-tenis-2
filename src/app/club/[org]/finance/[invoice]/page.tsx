@@ -6,9 +6,11 @@ import { branches,uuid } from '@/lib/club';
 import { financeInvoice } from '@/lib/finance';
 import { financePath,paymentMethods } from '@/lib/finance-fields';
 import { errorMessage } from '@/lib/messages';
-import { formatMinor } from '@/lib/money';
-import { bookingKinds,persianDate } from '@/lib/resource-fields';
+import { buildFinanceLedgerCsvData } from '@/lib/csv';
+import { currencyLabel,formatMinor } from '@/lib/money';
+import { asciiDigits,bookingKinds,persianDate } from '@/lib/resource-fields';
 import { currentUser } from '@/lib/session';
+import { CsvDownloadButton } from '@/components/csv-download-button';
 import { AmountFields,FinanceActions,FinanceForm } from '../actions';
 import { InvoiceStatus } from '../status';
 
@@ -28,6 +30,26 @@ export default async function InvoicePage({params,searchParams}:{
   const active=detail.status!=='voided';
   const problem=typeof filters.error==='string' ? errorMessage(filters.error) : undefined;
   const localTime=(date:Date)=>persianDate(date,branch.timezone,true);
+  const ledgerCsv=buildFinanceLedgerCsvData(
+    payments.map(payment=>({
+      id:payment.id,
+      methodLabel:paymentMethods[payment.method],
+      amount:payment.amount,
+      available:payment.available,
+      reference:payment.reference,
+      effectiveAtLabel:localTime(payment.effective_at),
+    })),
+    refunds.map(refund=>({
+      paymentId:refund.payment_id,
+      amount:refund.amount,
+      reason:refund.reason,
+      effectiveAtLabel:localTime(refund.effective_at),
+    })),
+    {
+      invoiceNumber:asciiDigits(detail.invoice_number),
+      currencyLabel:currencyLabel(currency),
+    },
+  );
   return <>
     <Link className="panel-link" href={financePath(org,undefined,{branch:branch.id})}>‹ بازگشت به امور مالی</Link>
     <header className="local-heading directory-heading"><div><h1>فاکتور {numberFa.format(BigInt(detail.invoice_number))}</h1>
@@ -74,7 +96,16 @@ export default async function InvoicePage({params,searchParams}:{
           </details>}
         </section>
         <section className="panel local-panel">
-          <h2>گردش دریافت و بازپرداخت</h2>
+          <div className="calendar-section-title table-section-head">
+            <h2>گردش دریافت و بازپرداخت</h2>
+            <CsvDownloadButton
+              filename={`finance-ledger-${asciiDigits(detail.invoice_number)}.csv`}
+              headers={ledgerCsv.headers}
+              rows={ledgerCsv.rows}
+              label="دانلود CSV"
+              ariaLabel="دانلود گردش دریافت و بازپرداخت فاکتور با فرمت CSV"
+            />
+          </div>
           {!payments.length && <p>هنوز دریافتی برای این فاکتور ثبت نشده است.</p>}
           <ul className="resource-list finance-ledger">{payments.map(payment=>{
             const linked=refunds.filter(refund=>refund.payment_id===payment.id);
