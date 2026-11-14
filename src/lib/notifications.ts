@@ -1,8 +1,7 @@
 import 'server-only';
 import type { NextResponse } from 'next/server';
 import { asUser,database } from './db';
-import { appOrigin, isDemoMode } from './config';
-import { demoMarkNotices, demoReadNotices } from './demo-store';
+import { appOrigin } from './config';
 import { calendarPath } from './calendar-dates';
 import { classesPath } from './class-fields';
 import { financePath } from './finance-fields';
@@ -42,7 +41,6 @@ export function noticeSource(org:string,row:Notice) {
   }
 }
 export function readNotices(user:string,org:string,branch:string|null,page:number) {
-  if (isDemoMode()) return Promise.resolve(demoReadNotices(branch, page));
   const size=24;
   return asUser(user,async db=>{
     const {rows}=await db.query<Notice>(`
@@ -55,7 +53,6 @@ export function readNotices(user:string,org:string,branch:string|null,page:numbe
   },true);
 }
 export function markNotices(user:string,org:string,branch:string|null,event:string|null) {
-  if (isDemoMode()) return Promise.resolve(demoMarkNotices(branch, event));
   return asUser(user,async db=>{
     if (event) {
       const result=await db.query('select from public.notification_events where organization_id=$1 and id=$2',[org,event]);
@@ -69,7 +66,7 @@ export function markNotices(user:string,org:string,branch:string|null,event:stri
 }
 export const pushPublicKey=()=>pushSettings()?.publicKey??null;
 export async function deviceIsEnabled(device:string|undefined,user:string,org:string) {
-  if (isDemoMode() || !device || !uuid(device)) return false;
+  if (!device || !uuid(device)) return false;
   const {rowCount}=await database().query('select from tennis_runtime.push_devices where (id,user_id,organization_id)=($1,$2,$3)',[device,user,org]);
   return !!rowCount;
 }

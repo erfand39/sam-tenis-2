@@ -1,7 +1,5 @@
 import 'server-only';
-import { isDemoMode } from './config';
 import { asUser } from './db';
-import { demoClassDetail, demoClassList } from './demo-store';
 import { type AttendanceState, type ClassState } from './class-fields';
 import { type Branch } from './club';
 
@@ -26,7 +24,6 @@ const classJoins = `
 `;
 
 export function classList(user:string,org:string,branch:Branch,from:string,to:string,status:ClassState|null,page:number) {
-  if (isDemoMode()) return Promise.resolve(demoClassList(branch, from, to, status, page));
   const size=24;
   return asUser(user,async db => {
     const rows=(await db.query<ClassItem>(`
@@ -47,7 +44,6 @@ export function classList(user:string,org:string,branch:Branch,from:string,to:st
 }
 
 export function classDetail(user:string,org:string,id:string) {
-  if (isDemoMode()) return Promise.resolve(demoClassDetail(id));
   return asUser(user,async db => {
     const session=(await db.query<ClassDetail>(`
       select ${classColumns}

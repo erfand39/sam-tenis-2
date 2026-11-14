@@ -1,15 +1,5 @@
 import 'server-only';
-import { isDemoMode } from './config';
 import { asUser } from './db';
-import {
-  demoAvailableCourts,
-  demoCourtSettings,
-  demoResourceDetail,
-  demoResourceHours,
-  demoResourceList,
-  demoResourceRecords,
-  demoSearchResources,
-} from './demo-store';
 import { type ResourceKind, type ResourceSearchItem, type ResourceStatus, asciiDigits, resourceKinds, resourceStatuses } from './resource-fields';
 import { normalizeSearchText } from './resource-search';
 import type { Branch } from './club';
@@ -77,7 +67,6 @@ export function parseFilters(raw: Record<string, string | string[] | undefined>,
 }
 
 export function resourceList(user: string, org: string, kind: ResourceKind, filters: ResourceFilters) {
-  if (isDemoMode()) return Promise.resolve(demoResourceList(kind, filters));
   const query = `with resource as (${base[kind]}), filtered as (
     select * from resource
     where ($2='' or strpos(translate(lower(name||' '||coalesce(subtitle,'')),'يك','یک'),translate(lower($2),'يك','یک'))>0)
@@ -105,12 +94,10 @@ export function resourceList(user: string, org: string, kind: ResourceKind, filt
 }
 
 export function resourceDetail(user: string, org: string, kind: ResourceKind, id: string) {
-  if (isDemoMode()) return Promise.resolve(demoResourceDetail(kind, id));
   return asUser(user, async db => (await db.query<ResourceDetail>(`select * from (${base[kind]}) r where id=$2`, [org,id])).rows[0]);
 }
 
 export async function searchResources(user: string, org: string, rawQuery: string, limit = 12): Promise<ResourceSearchItem[]> {
-  if (isDemoMode()) return demoSearchResources(rawQuery, limit);
   const query = normalizeSearchText(rawQuery);
   if (!query) return [];
   const cap = Math.max(1, Math.min(limit, 30));
@@ -155,7 +142,6 @@ const calendarJoins = {
 } as const;
 
 export function resourceRecords(user: string, org: string, kind: ResourceKind, id: string) {
-  if (isDemoMode()) return Promise.resolve(demoResourceRecords(kind, id));
   const config = calendarJoins[kind];
   return asUser(user, async db => {
     const history = (await db.query<ResourceEvent>('select * from public.resource_history($1,$2,$3)',[org,resourceKinds[kind].db,id])).rows;
@@ -187,7 +173,6 @@ export type CourtBlock = { id: string; starts_at: Date; ends_at: Date; reason: s
 export type CourtOption = { id: string; location_id: string; name: string };
 
 export function availableCourts(user: string, org: string, coach?: string) {
-  if (isDemoMode()) return Promise.resolve(demoAvailableCourts(coach));
   return asUser(user, async db => {
     const options = (await db.query<CourtOption>(
       'select id,location_id,name from public.courts where organization_id=$1 order by location_id,name,id', [org])).rows;
@@ -198,7 +183,6 @@ export function availableCourts(user: string, org: string, coach?: string) {
 }
 
 export function resourceHours(user: string, org: string, kind: 'courts' | 'coaches', id: string) {
-  if (isDemoMode()) return Promise.resolve(demoResourceHours(kind, id));
   const table = kind === 'courts' ? 'court_operating_hours' : 'coach_availability';
   const column = kind === 'courts' ? 'court_id' : 'coach_id';
   return asUser(user, async db => (await db.query<HoursEntry>(`
@@ -212,7 +196,6 @@ export function resourceHours(user: string, org: string, kind: 'courts' | 'coach
 }
 
 export function courtSettings(user: string, org: string, id: string) {
-  if (isDemoMode()) return Promise.resolve(demoCourtSettings(org, id));
   return asUser(user, async db => {
     const rates = (await db.query<CourtRate>(`
       select id,kind,lower(effective) as from_time,upper(effective) as until_time,unit_minutes,amount_minor,effective @> now() as current

@@ -3,9 +3,7 @@ import { bookingError } from './booking-commands';
 import { calendarDateTime } from './calendar-dates';
 import { attendanceStates, classesPath } from './class-fields';
 import { uuid } from './club';
-import { isDemoMode } from './config';
 import { asUser } from './db';
-import { demoRunClassAction } from './demo-store';
 import { InputError } from './input';
 
 type ClassAction = 'class-enroll'|'class-withdraw'|'class-attendance';
@@ -40,7 +38,6 @@ export async function runClassAction(action:ClassAction,form:URLSearchParams,use
   const session=id(form,'session');
   const branch=id(form,'branch');
   const request=id(form,'request');
-  if (isDemoMode()) return demoRunClassAction(action, form, user, org);
   try {
     await asUser(user,async db => {
       const exists=await db.query('select 1 from public.sessions where organization_id=$1 and location_id=$2 and id=$3',[org,branch,session]);

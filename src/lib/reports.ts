@@ -3,9 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { type PoolClient } from 'pg';
 import { branchDateTime, validCalendarDate } from './calendar-dates';
 import { branches,clubFor,uuid } from './club';
-import { isDemoMode } from './config';
 import { asUser } from './db';
-import { demoLoadReport } from './demo-store';
 import { reportPeriods,reportRange,reportScopes,type DateRange,type ReportPeriod,type ReportScope } from './report-dates';
 import { reportBlocks,reportBookings,reportCoachTime,reportCourts,reportMoney,reportSessions,reportStudent } from './report-queries';
 import { currentUser } from './session';
@@ -87,11 +85,6 @@ const directoryQueries={
 
 export async function loadReport(context:Context) {
   const {org,userId,branchIds,scope,range,filters,compare}=context;
-  if (isDemoMode()) {
-    const result = demoLoadReport(branchIds, scope, range, filters, compare);
-    if (filters.entity && !result.entity) notFound();
-    return result;
-  }
   return asUser(userId,async db=>{
     const entities=scope==='club'?[]:(await db.query<ReportEntity>(directoryQueries[scope]+' order by name,id',[org])).rows;
     const entity=entities.find(item=>item.id===filters.entity&&item.locations.some(location=>branchIds.includes(location)));

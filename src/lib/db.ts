@@ -1,48 +1,16 @@
 import 'server-only';
-import pg, { type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
-import { databaseUrl, isDatabaseConfigured, isDemoMode } from './config';
-
-const DEMO_OWNER_ID = '10000000-0000-4000-8000-000000000099';
+import pg, { type PoolClient } from 'pg';
+import { databaseUrl, isDatabaseConfigured } from './config';
 
 let pool: pg.Pool | undefined;
-let warnedMock = false;
-
-function mockResult<R extends QueryResultRow = QueryResultRow>(rows: R[] = []): QueryResult<R> {
-  return { rows, rowCount: rows.length, command: 'SELECT', oid: 0, fields: [] };
-}
-
-function createMockClient(): PoolClient {
-  return {
-    query: async <R extends QueryResultRow = QueryResultRow>() => mockResult<R>([]),
-    release: () => {},
-  } as unknown as PoolClient;
-}
-
-function createMockPool(): pg.Pool {
-  if (!warnedMock) {
-    warnedMock = true;
-    console.warn('[AI Studio] Database not connected — demo store active');
-  }
-  const mockPool = {
-    query: async <R extends QueryResultRow = QueryResultRow>() => mockResult<R>([]),
-    connect: async () => createMockClient(),
-    on: () => mockPool,
-    end: async () => {},
-  };
-  return mockPool as unknown as pg.Pool;
-}
 
 export function database(): pg.Pool {
   if (!isDatabaseConfigured()) {
-    return createMockPool();
+    throw new Error('Local PostgreSQL is not configured.');
   }
   if (!pool) {
-    try {
-      pool = new pg.Pool({ connectionString: databaseUrl(), max: 10, connectionTimeoutMillis: 4000, statement_timeout: 12000 });
-      pool.on('error', () => console.warn('Local PostgreSQL connection closed.'));
-    } catch {
-      return createMockPool();
-    }
+    pool = new pg.Pool({ connectionString: databaseUrl(), max: 10, connectionTimeoutMillis: 4000, statement_timeout: 12000 });
+    pool.on('error', () => console.warn('Local PostgreSQL connection closed.'));
   }
   return pool;
 }
@@ -73,18 +41,17 @@ export function asUser<T>(userId: string, work: (client: PoolClient) => Promise<
 }
 
 export async function isConfigured(): Promise<boolean> {
-  if (isDemoMode()) return true;
+  if (!isDatabaseConfigured()) return false;
   try {
     const { rows } = await database().query<{ configured: boolean }>('select tennis_runtime.is_configured() as configured');
     return Boolean(rows[0]?.configured);
-  } catch (err) {
-    console.warn('[AI Studio] Database offline in isConfigured — falling back to mock:', (err as Error).message);
+  } catch {
     return false;
   }
 }
 
 export async function hasManagerAccess(userId: string): Promise<boolean> {
-  if (isDemoMode()) return userId === DEMO_OWNER_ID;
+  if (!isDatabaseConfigured()) return false;
   try {
     return await asUser(userId, async client => {
       const { rows } = await client.query<{ allowed: boolean }>(`

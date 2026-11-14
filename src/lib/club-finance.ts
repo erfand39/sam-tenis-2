@@ -1,7 +1,5 @@
 import 'server-only';
-import { isDemoMode } from './config';
 import { asUser } from './db';
-import { demoCoachFinance, demoFinanceExpenses, demoFinanceRates, demoTrainingFinance } from './demo-store';
 import { type Branch } from './club';
 import { type coachBases,type expenseCategories,type payableStates } from './club-finance-fields';
 import { type paymentMethods } from './finance-fields';
@@ -31,7 +29,6 @@ const paging=(page:number)=>[size+1,(page-1)*size];
 const pageOf=<T,>(rows:T[])=>({rows:rows.slice(0,size),hasNext:rows.length>size});
 
 export function trainingFinance(user:string,org:string,branch:Branch,page:number,selected?:string,session?:string) {
-  if (isDemoMode()) return Promise.resolve(demoTrainingFinance(branch, page, selected, session));
   return asUser(user,async db=>{
     const scope=[org,branch.id];
     const students=(await db.query<Student>(`
@@ -71,7 +68,6 @@ export function trainingFinance(user:string,org:string,branch:Branch,page:number
 }
 
 export function financeExpenses(user:string,org:string,branch:string,from:string,to:string,page:number) {
-  if (isDemoMode()) return Promise.resolve(demoFinanceExpenses(branch, from, to, page));
   return asUser(user,async db=>pageOf((await db.query<Expense>(`
     select id,title,category,currency,amount_minor::text as amount,method,effective_on::text,voided_at,void_reason
     from public.club_expenses where organization_id=$1 and location_id=$2 and effective_on between $3 and $4
@@ -80,7 +76,6 @@ export function financeExpenses(user:string,org:string,branch:string,from:string
 }
 
 export function coachFinance(user:string,org:string,branch:Branch,from:string,to:string,page:number,session?:string) {
-  if (isDemoMode()) return Promise.resolve(demoCoachFinance(branch, from, to, page, session));
   return asUser(user,async db=>{
     const rows=(await db.query<Payable>(`
       select p.id,p.session_id,p.currency,p.status,p.amount_minor::text as amount,p.basis_minor::text as basis_amount,
@@ -105,7 +100,6 @@ export function coachFinance(user:string,org:string,branch:Branch,from:string,to
 }
 
 export function financeRates(user:string,org:string,branch:string) {
-  if (isDemoMode()) return Promise.resolve(demoFinanceRates(branch));
   return asUser(user,async db=>{
     const rates=(await db.query<Rate>(`
       select r.id,r.kind,c.name as court,lower(r.effective) as effective_at,r.unit_minutes,r.amount_minor::text as amount

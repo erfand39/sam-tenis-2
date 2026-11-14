@@ -7,7 +7,6 @@ const DEFAULT_KEY = '00000000000000000000000000000000000000000000000000000000000
 
 export const isDatabaseConfigured = () => Boolean(process.env.SAM_DATABASE_URL || process.env.DATABASE_URL);
 export const isAuthConfigured = () => Boolean(process.env.SAM_AUTH_URL);
-export const isDemoMode = () => !isDatabaseConfigured();
 
 export const appOrigin = () => {
   const value = process.env.SAM_ORIGIN;

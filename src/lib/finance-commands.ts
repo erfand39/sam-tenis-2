@@ -3,9 +3,7 @@ import { bookingError } from './booking-commands';
 import { isClubFinanceCommand } from './club-finance-fields';
 import { runClubFinanceAction } from './club-finance-commands';
 import { uuid } from './club';
-import { isDemoMode } from './config';
 import { asUser } from './db';
-import { demoRunFinanceAction } from './demo-store';
 import { financeCommands,financePath,isFinanceCommand,paymentMethods,type FinanceCommandName } from './finance-fields';
 import { InputError } from './input';
 import { parseMinor } from './money';
@@ -34,7 +32,6 @@ function amountOf(form:URLSearchParams,key:string,currency:string,allowZero=fals
 export async function runFinanceAction(action:FinanceAction,form:URLSearchParams,user:string,org:string) {
   const branch=id(form,'branch');
   const request=id(form,'request');
-  if (isDemoMode()) return demoRunFinanceAction(action, form, org);
   try {
     return await asUser(user,async db=>{
       const branchVisible=await db.query('select 1 from public.locations where organization_id=$1 and id=$2',[org,branch]);

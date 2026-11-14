@@ -1,9 +1,7 @@
 import 'server-only';
 import { type PoolClient } from 'pg';
 import { uuid } from './club';
-import { isDemoMode } from './config';
 import { asUser } from './db';
-import { demoRunResourceCommand } from './demo-store';
 import { parseMinor } from './money';
 import { InputError } from './input';
 import { asciiDigits, bookingKinds, isResourceKind, resourceKinds, resourcePath } from './resource-fields';
@@ -110,7 +108,6 @@ async function branchTimestamps(db: PoolClient, org: string, branch: string, sta
 }
 
 export async function runResourceCommand(action: ResourceCommand, values: URLSearchParams, user: string, org: string): Promise<string> {
-  if (isDemoMode()) return demoRunResourceCommand(action, values, user, org);
   const kind = values.get('kind') ?? '';
   if (!isResourceKind(kind)) throw new InputError('resource-invalid');
   const dbKind = resourceKinds[kind].db;
