@@ -1,0 +1,11 @@
+/dist/
+.env
+.env.*
+!.env.example
+.DS_Store
+/node_modules/
+/supabase/.temp/
+/supabase/.branches/
+/.next/
+/.local/
+/tsconfig.tsbuildinfo
